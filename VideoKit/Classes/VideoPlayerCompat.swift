@@ -8,7 +8,8 @@
 
 import Foundation
 
-public enum VideoPlayerStatus {
+@objc
+public enum VideoPlayerStatus: Int {
   case unknown
   case buffering
   case readyToPlay

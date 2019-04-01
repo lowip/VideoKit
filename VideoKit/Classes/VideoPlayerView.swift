@@ -9,7 +9,8 @@
 import UIKit
 import AVFoundation
 
-public final class VideoPlayerView: UIView {
+@objcMembers
+public class VideoPlayerView: UIView {
   
   // MARK: - Properties
   
@@ -204,14 +205,14 @@ extension VideoPlayerView: VideoPlayerViewProtocol {
     player.isLooping = self.isLooping
     
     // Update delegate methods
-    self.delegate?.videoPlayerView(self, playerStatusDidChange: player.playerStatus)
-    self.delegate?.videoPlayerView(
+    self.delegate?.videoPlayerView?(self, playerStatusDidChange: player.playerStatus)
+    self.delegate?.videoPlayerView?(
       self,
       elapsedSecondsDidChange: player.elapsedSeconds,
       totalSeconds: player.totalSeconds
     )
     if player.elapsedSeconds == player.totalSeconds, player.playerStatus == .paused {
-      self.delegate?.videoPlayerViewDidPlayToEnd(self)
+      self.delegate?.videoPlayerViewDidPlayToEnd?(self)
     }
     
     // Nothing to do if we have the same requested state of the player
@@ -225,12 +226,12 @@ extension VideoPlayerView: VideoPlayerViewProtocol {
     }
     
     // Delegate
-    self.delegate?.videoPlayerViewDidBecomeCurrent(self)
+    self.delegate?.videoPlayerViewDidBecomeCurrent?(self)
   }
   
   func willResignCurrent(from player: VideoPlayer) {
     // Delegate
-    self.delegate?.videoPlayerViewWillResignCurrent(self)
+    self.delegate?.videoPlayerViewWillResignCurrent?(self)
   }
 }
 
@@ -288,7 +289,7 @@ extension VideoPlayerView: VideoPlayerPlaybackProtocol {
 extension VideoPlayerView: VideoPlayerDelegate {
   
   func videoPlayer(_ videoPlayer: VideoPlayer, statusDidChange status: VideoPlayerStatus) {
-    self.delegate?.videoPlayerView(self, playerStatusDidChange: status)
+    self.delegate?.videoPlayerView?(self, playerStatusDidChange: status)
   }
   
   func videoPlayer(
@@ -296,7 +297,7 @@ extension VideoPlayerView: VideoPlayerDelegate {
     elapsedSecondsDidChange elapsedSeconds: TimeInterval,
     totalSeconds: TimeInterval
   ) {
-    self.delegate?.videoPlayerView(
+    self.delegate?.videoPlayerView?(
       self,
       elapsedSecondsDidChange: elapsedSeconds,
       totalSeconds: totalSeconds
@@ -304,13 +305,14 @@ extension VideoPlayerView: VideoPlayerDelegate {
   }
   
   func videoPlayerDidPlayToEnd(_ videoPlayer: VideoPlayer) {
-    self.delegate?.videoPlayerViewDidPlayToEnd(self)
+    self.delegate?.videoPlayerViewDidPlayToEnd?(self)
   }
   
 }
 
 // MARK: - VideoPlayerViewDelegate
 
+@objc(VideoPlayerViewDelegate)
 public protocol VideoPlayerViewDelegate: AnyObject {
   
   /// Called when the status of the video player changes
@@ -318,6 +320,7 @@ public protocol VideoPlayerViewDelegate: AnyObject {
   /// - Parameters:
   ///   - videoPlayerView: The video player view which `status` changed
   ///   - status: The new `status`
+  @objc optional
   func videoPlayerView(
     _ videoPlayerView: VideoPlayerView,
     playerStatusDidChange status: VideoPlayerStatus
@@ -329,6 +332,7 @@ public protocol VideoPlayerViewDelegate: AnyObject {
   ///   - videoPlayerView: The video player view which `elapsedSeconds` changed
   ///   - elapsedSeconds: The new value for `elapsedSeconds`
   ///   - totalSeconds: The new value for `totalSeconds`
+  @objc optional
   func videoPlayerView(
     _ videoPlayerView: VideoPlayerView,
     elapsedSecondsDidChange elapsedSeconds: TimeInterval,
@@ -339,6 +343,7 @@ public protocol VideoPlayerViewDelegate: AnyObject {
   ///
   /// - Parameters:
   ///   - videoPlayerView: The video player view which played to the end
+  @objc optional
   func videoPlayerViewDidPlayToEnd(_ videoPlayerView: VideoPlayerView)
   
   /// Called when the player view becomes current
@@ -348,6 +353,7 @@ public protocol VideoPlayerViewDelegate: AnyObject {
   ///
   /// - Parameters:
   ///   - videoPlayerView: The video player view which became current
+  @objc optional
   func videoPlayerViewDidBecomeCurrent(_ videoPlayerView: VideoPlayerView)
   
   /// Called when the player view changes from current to not current
@@ -357,12 +363,14 @@ public protocol VideoPlayerViewDelegate: AnyObject {
   ///
   /// - Parameters:
   ///   - videoPlayerView: The video player view which became current
+  @objc optional
   func videoPlayerViewWillResignCurrent(_ videoPlayerView: VideoPlayerView)
   
 }
 
 // Default implementation
 
+/*
 public extension VideoPlayerViewDelegate {
   
   func videoPlayerView(
@@ -382,3 +390,4 @@ public extension VideoPlayerViewDelegate {
   
   func videoPlayerViewWillResignCurrent(_ videoPlayerView: VideoPlayerView) {}
 }
+*/

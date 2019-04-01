@@ -10,7 +10,8 @@ import AVFoundation
 
 // MARK: - VideoPlayer
 
-final class VideoPlayer {
+@objc
+final class VideoPlayer: NSObject {
   
   // MARK: - Constants
   
@@ -142,6 +143,9 @@ final class VideoPlayer {
   // MARK: - Initializing
   
   init(url: URL? = nil, cacheKey: String? = nil) {
+    // Super
+    super.init()
+    
     // Set url if available
     if let url = url {
       self.set(url: url, cacheKey: cacheKey)
