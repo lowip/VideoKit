@@ -101,15 +101,15 @@ final class VideoPlayerResourceLoader: NSObject {
         self?.finishLoading(loadingRequest, error: error ?? Error.invalidResponse)
         return
       }
-      
-      // Provide data to the dataRequest
-      dataRequest.respond(with: data)
-      
+
       // Provide content information if needed
       if let contentInformationRequest = loadingRequest.contentInformationRequest {
         contentInformationRequest.contentType = response.mimeType
         contentInformationRequest.contentLength = response.fullContentLength
         contentInformationRequest.isByteRangeAccessSupported = response.value(forHTTPHeaderField: "Accept-Ranges") == "bytes"
+      } else {
+        // Provide data to the dataRequest
+        dataRequest.respond(with: data)
       }
       
       // Finish loading
