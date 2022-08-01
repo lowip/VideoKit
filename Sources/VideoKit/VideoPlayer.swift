@@ -222,7 +222,11 @@ final class VideoPlayer: NSObject {
 
     self.processQueue.async {
       // Create new playerModel
-      let playerModel = VideoPlayerModel(url: url, cacheKey: self.cacheKey)
+      let playerModel = VideoPlayerModel(
+        url: url,
+        cacheKey: self.cacheKey,
+        queue: self.processQueue
+      )
 
       // Setup playerModel
       playerModel.player = self.player
