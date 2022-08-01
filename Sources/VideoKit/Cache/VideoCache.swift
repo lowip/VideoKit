@@ -76,13 +76,16 @@ public final class VideoCache {
 
   @objc
   private func resignActive() {
-    lock(); defer { unlock() }
+    lock()
+    defer { unlock() }
     saveManifest()
   }
 
   // MARK: - Cache Methods
 
-  public func get(key: String, range: Range<UInt64>, completion: @escaping ((Data, Metadata)?) -> Void) {
+  public func get(
+    key: String, range: Range<UInt64>, completion: @escaping ((Data, Metadata)?) -> Void
+  ) {
     queue.async { [weak self] in
       guard let self = self else { return }
       let result = self.getSync(key: key, range: range)
@@ -111,7 +114,8 @@ public final class VideoCache {
   }
 
   public func clear() {
-    lock(); defer { unlock() }
+    lock()
+    defer { unlock() }
 
     // Clear manifest
     manifest = [:]
@@ -127,7 +131,8 @@ public final class VideoCache {
   // MARK: - Cache Methods (Sync)
 
   func getSync(key: String, range: Range<UInt64>) -> (Data, Metadata)? {
-    lock(); defer { unlock() }
+    lock()
+    defer { unlock() }
 
     let stableKey = stableKey(for: key)
 
@@ -152,7 +157,8 @@ public final class VideoCache {
   }
 
   func setSync(data: Data, key: String, offset: UInt64, metadata: Metadata?) {
-    lock(); defer { unlock() }
+    lock()
+    defer { unlock() }
     let stableKey = stableKey(for: key)
 
     // Handle singleFileByteLimit
@@ -175,7 +181,8 @@ public final class VideoCache {
       let overlappingDataEntries = entry.dataEntries(overlapping: range)
       if overlappingDataEntries.count > 0 {
         let dataEntriesToMerge = overlappingDataEntries + [dataEntry]
-        mergeEntries(dataEntries: dataEntriesToMerge, newDataEntry: dataEntry, data: subdata, key: stableKey)
+        mergeEntries(
+          dataEntries: dataEntriesToMerge, newDataEntry: dataEntry, data: subdata, key: stableKey)
       } else {
         // Check if we can skip creating a new file (already have singleFileByteLimit data for this key)
         let skipFileCreation = entry.dataEntries.contains { $0.fileSize >= singleFileByteLimit }
@@ -197,13 +204,15 @@ public final class VideoCache {
   }
 
   private func trimSync() {
-    lock(); defer { unlock() }
+    lock()
+    defer { unlock() }
 
     // Nothing to do if the cache is not bigger than the limit
     if byteCount <= byteLimit { return }
 
     // Get all the dataEntries sorted by lastAccessDate
-    let dataEntries = manifest
+    let dataEntries =
+      manifest
       .reduce([]) { p, c -> [(String, DataEntry)] in p + c.value.dataEntries.map { (c.key, $0) } }
       .sorted { $0.1.lastAccessDate < $1.1.lastAccessDate }
 
@@ -234,10 +243,10 @@ public final class VideoCache {
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .iso8601
     #if DEBUG
-    var formatting: JSONEncoder.OutputFormatting = .prettyPrinted
-    if #available(iOS 11, *) { formatting.formUnion(.sortedKeys) }
-    if #available(iOS 13, *) { formatting.formUnion(.withoutEscapingSlashes) }
-    encoder.outputFormatting = formatting
+      var formatting: JSONEncoder.OutputFormatting = .prettyPrinted
+      if #available(iOS 11, *) { formatting.formUnion(.sortedKeys) }
+      if #available(iOS 13, *) { formatting.formUnion(.withoutEscapingSlashes) }
+      encoder.outputFormatting = formatting
     #endif
     return encoder
   }()
@@ -274,7 +283,7 @@ public final class VideoCache {
       includingPropertiesForKeys: Array(keys),
       options: .skipsHiddenFiles
     )
-      .filter { $0 != manifestURL }
+    .filter { $0 != manifestURL }
 
     let filenames = files.map { $0.lastPathComponent }
     // Remove elements that does not exist on disk from the manifest
@@ -306,7 +315,8 @@ public final class VideoCache {
 
       // Add to the manifest if there is already an entry
       if let entry = entry {
-        entry.dataEntries.append(DataEntry(lastAccessDate: date, fileSize: fileSize, offset: offset))
+        entry.dataEntries.append(
+          DataEntry(lastAccessDate: date, fileSize: fileSize, offset: offset))
       } else {
         // Delete file
         try? FileManager.default.removeItem(at: fileURL)
@@ -322,9 +332,10 @@ public final class VideoCache {
   }
 
   private func offset(for url: URL) throws -> UInt64 {
-    return UInt64(try url
-      .absoluteString
-      .replacing(pattern: ".*~(\\d+)$", with: "$1")
+    return UInt64(
+      try url
+        .absoluteString
+        .replacing(pattern: ".*~(\\d+)$", with: "$1")
     )!
   }
 
@@ -334,7 +345,8 @@ public final class VideoCache {
   }
 
   private func key(for fileURL: URL) -> String {
-    let fileName = try! fileURL
+    let fileName =
+      try! fileURL
       .deletingPathExtension()
       .lastPathComponent
       .replacing(pattern: "(.*)~\\d+$", with: "$1")
@@ -442,7 +454,8 @@ public final class VideoCache {
         // Handle merge for an entry data into the fileHandle
         let currentFileURL = self.fileURL(for: key, offset: dataEntry.offset)
         let currentFileHandle = try! FileHandle(forReadingFrom: currentFileURL)
-        let currentData = currentFileHandle.readData(ofLength: Int(partialSize ?? dataEntry.fileSize))
+        let currentData = currentFileHandle.readData(
+          ofLength: Int(partialSize ?? dataEntry.fileSize))
         fileHandle.write(currentData)
 
         // Delete the file that was merged

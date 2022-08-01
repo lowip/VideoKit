@@ -78,8 +78,12 @@ final class VideoPlayerResourceLoader: NSObject {
     // In that case, we limit the max requested length to 1Mib (== 1 << 20 bytes)
     let range =
       dataRequest.requestsAllDataToEndOfResource
-      ? UInt64(dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset) + UInt64(min(dataRequest.requestedLength, 1 << 20)))
-      : UInt64(dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset) + UInt64(dataRequest.requestedLength))
+      ? UInt64(
+        dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset)
+        + UInt64(min(dataRequest.requestedLength, 1 << 20)))
+      : UInt64(
+        dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset)
+        + UInt64(dataRequest.requestedLength))
 
     // Lookup range in cache
     let cache = VideoCache.main
@@ -111,7 +115,7 @@ final class VideoPlayerResourceLoader: NSObject {
         // Handle errors
         guard let data = data, let response = response as? HTTPURLResponse else {
           if let error = error, (error as NSError).domain == NSURLErrorDomain,
-             (error as NSError).code == NSURLErrorCancelled
+            (error as NSError).code == NSURLErrorCancelled
           {
             self.finishLoading(loadingRequest)
             return
@@ -125,12 +129,14 @@ final class VideoPlayerResourceLoader: NSObject {
           contentInformationRequest.contentType = response.mimeType
           contentInformationRequest.contentLength = response.fullContentLength
           contentInformationRequest.isByteRangeAccessSupported =
-          response.value(forHTTPHeaderField: "Accept-Ranges") == "bytes"
+            response.value(forHTTPHeaderField: "Accept-Ranges") == "bytes"
           cache.setSync(
             data: Data(),
             key: request.url!.absoluteString,
             offset: 0,
-            metadata: (contentType: response.mimeType!, contentLength: UInt64(response.fullContentLength))
+            metadata: (
+              contentType: response.mimeType!, contentLength: UInt64(response.fullContentLength)
+            )
           )
         } else {
           // Provide data to the dataRequest
