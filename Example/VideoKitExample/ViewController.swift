@@ -35,6 +35,7 @@ class ViewController: UITableViewController {
     let cell = tableView.dequeueReusableCell(withIdentifier: "cellIdentifier", for: indexPath) as! Cell
     let (videoURL, _) = Self.videoURLs[indexPath.row]
     cell.playerView.set(url: videoURL)
+    cell.playerView.isMuted = true
     cell.playerView.play()
     return cell
   }

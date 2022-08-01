@@ -7,13 +7,13 @@ class VideoPlayerModel {
 
   // MARK: - Constants
 
-  /// The dispatchQueue used for time observation
-  static private let timeObserverQueue = DispatchQueue.global(qos: .background)
-
   /// The keys to load before the player item's asset is ready for playback
   static private let keysForPlayback: [String] = ["playable", "duration", "tracks"]
 
   // MARK: - Properties
+
+  /// The queue on which the player model operations are executed
+  let queue: DispatchQueue
 
   /// The key used for the cache
   let cacheKey: String
@@ -76,17 +76,19 @@ class VideoPlayerModel {
   /// - Parameters:
   ///   - playerItem: The AVPlayerItem
   ///   - cacheKey: The key to use for the cache
+  ///   - queue: The queue on which the player model operations are executed
   ///
   /// - Returns: The newly created VideoPlayerModel
-  init(playerItem: AVPlayerItem, cacheKey: String) {
+  init(playerItem: AVPlayerItem, cacheKey: String, queue: DispatchQueue) {
     // Set properties
     self.playerItem = playerItem
     self.cacheKey = cacheKey
-    self.resourceLoader = VideoPlayerResourceLoader(cacheKey: cacheKey)
+    resourceLoader = VideoPlayerResourceLoader(cacheKey: cacheKey, queue: queue)
+    self.queue = queue
 
     // Use the resourceLoader if possible
     if let urlAsset = playerItem.asset as? AVURLAsset, urlAsset.url.isWrapped {
-      urlAsset.resourceLoader.setDelegate(self.resourceLoader, queue: .global())
+      urlAsset.resourceLoader.setDelegate(resourceLoader, queue: queue)
     }
   }
 
@@ -99,9 +101,10 @@ class VideoPlayerModel {
   /// - Parameters:
   ///   - url: The url of the media
   ///   - cacheKey: The key to use for the cache, defaults to `url.absoluteString`
+  ///   - queue: The queue on which the player model operations are executed
   ///
   /// - Returns: The newly created VideoPlayerModel
-  convenience init(url: URL, cacheKey: String? = nil) {
+  convenience init(url: URL, cacheKey: String? = nil, queue: DispatchQueue) {
     // Wrap the url
     let wrappedUrl = url.pathExtension != "m3u8" ? url.wrap()! : url
 
@@ -112,7 +115,8 @@ class VideoPlayerModel {
     // Initialize player model
     self.init(
       playerItem: playerItem,
-      cacheKey: VideoPlayerModel.cacheKey(with: url, cacheKey: cacheKey)
+      cacheKey: VideoPlayerModel.cacheKey(with: url, cacheKey: cacheKey),
+      queue: queue
     )
   }
 
@@ -253,7 +257,7 @@ class VideoPlayerModel {
         seconds: 1,
         preferredTimescale: CMTimeScale(NSEC_PER_SEC)
       ),
-      queue: VideoPlayerModel.timeObserverQueue
+      queue: queue
     ) { [weak self] time in
       guard let `self` = self else { return }
 

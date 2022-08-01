@@ -20,7 +20,7 @@ final class VideoPlayerResourceLoader: NSObject {
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
     configuration.urlCache = nil
     configuration.httpShouldUsePipelining = true
-    configuration.timeoutIntervalForRequest = 5
+    configuration.timeoutIntervalForRequest = 20
     return URLSession(configuration: configuration)
   }()
 
@@ -35,11 +35,15 @@ final class VideoPlayerResourceLoader: NSObject {
   /// The map of dataTasks associated with loadingRequests
   private var loadingRequestsMap = [AVAssetResourceLoadingRequest: URLSessionDataTask]()
 
+  /// The queue on which all resource-loading operations should run.
+  let queue: DispatchQueue
+
   // MARK: - Initializing
 
-  init(cacheKey: String) {
+  init(cacheKey: String, queue: DispatchQueue) {
     // Properties
     self.cacheKey = cacheKey
+    self.queue = queue
 
     // Super
     super.init()
@@ -69,47 +73,85 @@ final class VideoPlayerResourceLoader: NSObject {
       return
     }
 
-    // Set range header
+    // Compute range
     // The `requestsAllDataToEndOfResource` is often true, even for simple mp4 files.
     // In that case, we limit the max requested length to 1Mib (== 1 << 20 bytes)
     let range =
       dataRequest.requestsAllDataToEndOfResource
-      ? "bytes=\(dataRequest.requestedOffset)-\(dataRequest.requestedOffset + Int64(min(dataRequest.requestedLength - 1, 1 << 20)))"
-      : "bytes=\(dataRequest.requestedOffset)-\(dataRequest.requestedOffset + Int64(dataRequest.requestedLength) - 1)"
-    request.addValue(range, forHTTPHeaderField: "Range")
+      ? UInt64(
+        dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset)
+        + UInt64(min(dataRequest.requestedLength, 1 << 20)))
+      : UInt64(
+        dataRequest.requestedOffset)..<(UInt64(dataRequest.requestedOffset)
+        + UInt64(dataRequest.requestedLength))
+
+    // Lookup range in cache
+    let cache = VideoCache.main
+    if let (data, metadata) = cache.getSync(key: request.url!.absoluteString, range: range) {
+      if let contentInformationRequest = loadingRequest.contentInformationRequest {
+        contentInformationRequest.contentType = metadata.contentType
+        contentInformationRequest.contentLength = Int64(metadata.contentLength)
+        contentInformationRequest.isByteRangeAccessSupported = true
+      } else {
+        dataRequest.respond(with: data)
+      }
+      finishLoading(loadingRequest)
+      return
+    }
+
+    // Set range header
+    let rangeHeader = "bytes=\(range.lowerBound)-\(range.upperBound - 1)"
+    request.addValue(rangeHeader, forHTTPHeaderField: "Range")
 
     // Create dataTask
     let dataTask = self.session.dataTask(with: request) { [weak self] data, response, error in
-      defer {
-        // Reset loadingRequest in map
-        self?.loadingRequestsMap.removeValue(forKey: loadingRequest)
-      }
+      guard let self = self else { return }
+      self.queue.async {
+        defer {
+          // Reset loadingRequest in map
+          self.loadingRequestsMap.removeValue(forKey: loadingRequest)
+        }
 
-      // Handle errors
-      guard let data = data, let response = response as? HTTPURLResponse else {
-        if let error = error, (error as NSError).domain == NSURLErrorDomain,
-          (error as NSError).code == NSURLErrorCancelled
-        {
-          self?.finishLoading(loadingRequest)
+        // Handle errors
+        guard let data = data, let response = response as? HTTPURLResponse else {
+          if let error = error, (error as NSError).domain == NSURLErrorDomain,
+            (error as NSError).code == NSURLErrorCancelled
+          {
+            self.finishLoading(loadingRequest)
+            return
+          }
+          self.finishLoading(loadingRequest, error: error ?? Error.invalidResponse)
           return
         }
-        self?.finishLoading(loadingRequest, error: error ?? Error.invalidResponse)
-        return
-      }
 
-      // Provide content information if needed
-      if let contentInformationRequest = loadingRequest.contentInformationRequest {
-        contentInformationRequest.contentType = response.mimeType
-        contentInformationRequest.contentLength = response.fullContentLength
-        contentInformationRequest.isByteRangeAccessSupported =
-          response.value(forHTTPHeaderField: "Accept-Ranges") == "bytes"
-      } else {
-        // Provide data to the dataRequest
-        dataRequest.respond(with: data)
-      }
+        // Provide content information if needed
+        if let contentInformationRequest = loadingRequest.contentInformationRequest {
+          contentInformationRequest.contentType = response.mimeType
+          contentInformationRequest.contentLength = response.fullContentLength
+          contentInformationRequest.isByteRangeAccessSupported =
+            response.value(forHTTPHeaderField: "Accept-Ranges") == "bytes"
+          cache.setSync(
+            data: Data(),
+            key: request.url!.absoluteString,
+            offset: 0,
+            metadata: (
+              contentType: response.mimeType!, contentLength: UInt64(response.fullContentLength)
+            )
+          )
+        } else {
+          // Provide data to the dataRequest
+          dataRequest.respond(with: data)
+          cache.setSync(
+            data: data,
+            key: request.url!.absoluteString,
+            offset: range.lowerBound,
+            metadata: nil
+          )
+        }
 
-      // Finish loading
-      self?.finishLoading(loadingRequest)
+        // Finish loading
+        self.finishLoading(loadingRequest)
+      }
     }
 
     // Add dataTask to map
