@@ -254,7 +254,7 @@ class VideoPlayerModel {
     // Add the timeObserver on the new player
     self.timeObserver = player.addPeriodicTimeObserver(
       forInterval: CMTime(
-        seconds: 1,
+        seconds: 1 / 60,
         preferredTimescale: CMTimeScale(NSEC_PER_SEC)
       ),
       queue: queue
