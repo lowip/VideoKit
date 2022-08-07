@@ -283,7 +283,7 @@ public final class VideoCache {
       includingPropertiesForKeys: Array(keys),
       options: .skipsHiddenFiles
     )
-    .filter { $0 != manifestURL }
+    .filter { $0.lastPathComponent != "manifest.json" }
 
     let filenames = files.map { $0.lastPathComponent }
     // Remove elements that does not exist on disk from the manifest
