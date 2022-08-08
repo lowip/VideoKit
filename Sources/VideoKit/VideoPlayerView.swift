@@ -153,6 +153,13 @@ public class VideoPlayerView: UIView {
     }
   }
 
+  /// Preloads the video.
+  public func prepareForPlayback() {
+    self.queue.async {
+      self.player?.prepareForPlayback()
+    }
+  }
+
 }
 
 // MARK: - VideoPlayerViewProtocol

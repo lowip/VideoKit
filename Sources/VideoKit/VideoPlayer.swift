@@ -210,7 +210,7 @@ final class VideoPlayer: NSObject {
 
   // MARK: - Private Methods
 
-  private func buildPlayerModel() {
+  private func buildPlayerModel(prepareForPlayback: Bool = false) {
     guard let url = self.url, !self.isBuildingPlayerModel else { return }
 
     // Set flag to true
@@ -237,6 +237,10 @@ final class VideoPlayer: NSObject {
       //    self.setupWithLoopingBehavior(self.loopingBehavior)
 
       self.isBuildingPlayerModel = false
+
+      if prepareForPlayback {
+        playerModel.prepareForPlayback()
+      }
     }
   }
 
@@ -400,6 +404,19 @@ extension VideoPlayer: VideoPlayerPlaybackProtocol {
 
       // Update status
       self.playerStatus = .paused
+    }
+  }
+
+  func prepareForPlayback() {
+    // If the video player was stopped, we need to rebuild the player model
+    if self.playerModel == nil, self.url != nil {
+      self.buildPlayerModel(prepareForPlayback: true)
+    }
+
+    self.processQueue.async { [weak self] in
+      // Nothing to do if no playerModel has been set
+      guard let playerModel = self?.playerModel else { return }
+      playerModel.prepareForPlayback()
     }
   }
 
